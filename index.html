@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منظومة متابعة ومقارنة تنفيذ المشروعات</title>
+    <!-- مكتبة Tailwind CSS للتصميم العصري -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- مكتبة SheetJS لقراءة وتصدير ملفات الإكسيل محلياً داخل المتصفح -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- خط تجوال العربي -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Tajawal', sans-serif; background-color: #f3f4f6; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- الهيدر -->
+    <header class="bg-blue-900 text-white py-5 shadow-md">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold">منظومة متابعة ومقارنة تنفيذ المشروعات</h1>
+                <p class="text-blue-200 text-sm mt-1">تحليل محلي آمن 100% - لا يتم رفع بياناتك لأي خادم خارجي</p>
+            </div>
+            <span class="bg-blue-800 text-xs px-3 py-1.5 rounded-full border border-blue-600">إصدار 1.0</span>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-7xl">
+        
+        <!-- الخطوة 1: رفع الملفات -->
+        <div class="card p-6 mb-6">
+            <h2 class="text-lg font-bold text-blue-900 mb-4 border-b pb-2">1. رفع ملفات الإكسيل (الفترة السابقة والفترة الحالية)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- ملف الفترة السابقة -->
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center hover:border-blue-500 transition">
+                    <label class="block cursor-pointer">
+                        <span class="text-blue-900 font-bold block mb-1">ملف الفترة السابقة (الأساس)</span>
+                        <span class="text-xs text-gray-500 block mb-3">اختر ملف Excel (.xlsx, .xls)</span>
+                        <input type="file" id="prevFile" accept=".xlsx, .xls, .csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                    </label>
+                    <p id="prevFileStatus" class="text-xs text-green-600 font-bold mt-2 hidden"></p>
+                </div>
+
+                <!-- ملف الفترة الحالية -->
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center hover:border-blue-500 transition">
+                    <label class="block cursor-pointer">
+                        <span class="text-blue-900 font-bold block mb-1">ملف الفترة الجديدة (التحديث)</span>
+                        <span class="text-xs text-gray-500 block mb-3">اختر ملف Excel (.xlsx, .xls)</span>
+                        <input type="file" id="currFile" accept=".xlsx, .xls, .csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                    </label>
+                    <p id="currFileStatus" class="text-xs text-green-600 font-bold mt-2 hidden"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- الخطوة 2: مطابقة الأعمدة (تظهر بعد رفع الملفين) -->
+        <div id="mappingSection" class="card p-6 mb-6 hidden">
+            <h2 class="text-lg font-bold text-blue-900 mb-2 border-b pb-2">2. مطابقة الأعمدة (لحل اختلاف مسميات الأعمدة بين الملفات)</h2>
+            <p class="text-sm text-gray-600 mb-4">قام النظام بمحاولة التعرف التلقائي على الأعمدة. يرجى مراجعة وتأكيد العمود المقابل لكل بيان في كلا الملفين:</p>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-right border">
+                    <thead class="bg-gray-100 text-gray-700">
+                        <tr>
+                            <th class="p-3 border">البيان المطلوب</th>
+                            <th class="p-3 border">العمود في ملف (الفترة السابقة)</th>
+                            <th class="p-3 border">العمود في ملف (الفترة الجديدة)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mappingTableBody">
+                        <!-- يتم توليد الصفوف برمجياً -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-6 text-center">
+                <button onclick="processData()" class="bg-blue-800 hover:bg-blue-900 text-white font-bold py-3 px-8 rounded-lg shadow transition">
+                    تحليل البيانات واستخراج الإحصائيات والمقارنة
+                </button>
+            </div>
+        </div>
+
+        <!-- الخطوة 3: لوحة النتائج والإحصائيات (تظهر بعد التحليل) -->
+        <div id="resultsSection" class="hidden">
+            
+            <!-- أزرار التحكم والتصدير -->
+            <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
+                <h2 class="text-xl font-bold text-blue-900">نتائج التحليل والمقارنة</h2>
+                <div class="flex gap-2">
+                    <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow text-sm flex items-center gap-2">
+                        <span>تصدير التقرير المدمج (Excel)</span>
+                    </button>
+                    <button onclick="window.print()" class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-5 rounded-lg shadow text-sm">
+                        طباعة التقرير / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- بطاقات المؤشرات الرئيسية (KPIs) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="card p-5 border-r-4 border-blue-600">
+                    <p class="text-xs text-gray-500 font-bold">إجمالي عدد المشروعات</p>
+                    <p id="kpiTotalProjects" class="text-2xl font-extrabold text-gray-800 mt-1">0</p>
+                    <p id="kpiNewProjects" class="text-xs text-blue-600 mt-1"></p>
+                </div>
+                <div class="card p-5 border-r-4 border-emerald-600">
+                    <p class="text-xs text-gray-500 font-bold">متوسط نسبة التنفيذ الحقيقية</p>
+                    <p id="kpiAvgActual" class="text-2xl font-extrabold text-emerald-700 mt-1">0%</p>
+                    <p id="kpiProgressDiff" class="text-xs text-gray-600 mt-1"></p>
+                </div>
+                <div class="card p-5 border-r-4 border-red-600">
+                    <p class="text-xs text-gray-500 font-bold">المشروعات المتأخرة عن المقرر</p>
+                    <p id="kpiDelayedCount" class="text-2xl font-extrabold text-red-600 mt-1">0</p>
+                    <p class="text-xs text-gray-500 mt-1">الحقيقي أقل من المقرر</p>
+                </div>
+                <div class="card p-5 border-r-4 border-amber-500">
+                    <p class="text-xs text-gray-500 font-bold">إجمالي المنصرف / التكلفة</p>
+                    <p id="kpiSpentRatio" class="text-2xl font-extrabold text-amber-600 mt-1">0%</p>
+                    <p id="kpiFinancialTotals" class="text-xs text-gray-600 mt-1"></p>
+                </div>
+            </div>
+
+            <!-- فلاتر الجدول -->
+            <div class="card p-4 mb-6 flex flex-wrap gap-3 items-center justify-between">
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="filterTable('all')" class="filter-btn bg-blue-900 text-white px-4 py-1.5 rounded-full text-sm font-bold" data-filter="all">جميع المشروعات</button>
+                    <button onclick="filterTable('delayed')" class="filter-btn bg-gray-200 text-gray-700 hover:bg-red-100 px-4 py-1.5 rounded-full text-sm font-bold" data-filter="delayed">المتأخرة عن البرنامج</button>
+                    <button onclick="filterTable('overdue')" class="filter-btn bg-gray-200 text-gray-700 hover:bg-amber-100 px-4 py-1.5 rounded-full text-sm font-bold" data-filter="overdue">تجاوزت تاريخ النهو</button>
+                    <button onclick="filterTable('stagnant')" class="filter-btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-1.5 rounded-full text-sm font-bold" data-filter="stagnant">لم تحقق تقدم</button>
+                </div>
+                <input type="text" id="searchInput" onkeyup="searchTable()" placeholder="بحث باسم المشروع..." class="border rounded-lg px-3 py-1.5 text-sm w-full sm:w-64 focus:outline-none focus:border-blue-500">
+            </div>
+
+            <!-- جدول التفاصيل والمقارنة -->
+            <div class="card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-right" id="resultsTable">
+                        <thead class="bg-blue-900 text-white">
+                            <tr>
+                                <th class="p-3">اسم المشروع</th>
+                                <th class="p-3">التكلفة</th>
+                                <th class="p-3">المنصرف الحالي</th>
+                                <th class="p-3">نسبة الصرف</th>
+                                <th class="p-3">المقرر %</th>
+                                <th class="p-3">الحقيقي السابق %</th>
+                                <th class="p-3">الحقيقي الحالي %</th>
+                                <th class="p-3">التقدم المحرز %</th>
+                                <th class="p-3">فجوة التأخير %</th>
+                                <th class="p-3">تاريخ النهو</th>
+                                <th class="p-3">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody" class="divide-y divide-gray-200">
+                            <!-- الصفوف تُملأ برمجياً -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        let prevData = [];
+        let currData = [];
+        let prevHeaders = [];
+        let currHeaders = [];
+        let mergedResults = [];
+
+        // الحقول الأساسية الستة وكلمات مفتاحية للتعرف التلقائي عليها
+        const requiredFields = [
+            { key: 'name', label: 'اسم المشروع', keywords: ['اسم', 'مشروع', 'عملية', 'بيان'] },
+            { key: 'cost', label: 'التكلفة', keywords: ['تكلفة', 'قيمة', 'اعتماد', 'تعاقدية'] },
+            { key: 'planned', label: 'نسبة التنفيذ المقررة', keywords: ['مقرر', 'مخطط', 'برنامج'] },
+            { key: 'actual', label: 'نسبة التنفيذ الحقيقية', keywords: ['حقيقي', 'فعلي', 'منفذ', 'تنفيذ'] },
+            { key: 'endDate', label: 'تاريخ النهو', keywords: ['نهو', 'انتهاء', 'تاريخ', 'موعد'] },
+            { key: 'spent', label: 'المنصرف', keywords: ['منصرف', 'صرف', 'مستخلص'] }
+        ];
+
+        // قراءة الملفات عند اختيارها
+        document.getElementById('prevFile').addEventListener('change', (e) => handleFileUpload(e, 'prev'));
+        document.getElementById('currFile').addEventListener('change', (e) => handleFileUpload(e, 'curr'));
+
+        function handleFileUpload(event, type) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                if (jsonData.length === 0) {
+                    alert("الملف فارغ أو غير صالح!");
+                    return;
+                }
+
+                const headers = Object.keys(jsonData[0]);
+
+                if (type === 'prev') {
+                    prevData = jsonData;
+                    prevHeaders = headers;
+                    const status = document.getElementById('prevFileStatus');
+                    status.textContent = `تم تحميل: ${file.name} (${jsonData.length} صف)`;
+                    status.classList.remove('hidden');
+                } else {
+                    currData = jsonData;
+                    currHeaders = headers;
+                    const status = document.getElementById('currFileStatus');
+                    status.textContent = `تم تحميل: ${file.name} (${jsonData.length} صف)`;
+                    status.classList.remove('hidden');
+                }
+
+                if (prevData.length > 0 && currData.length > 0) {
+                    buildMappingUI();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // بناء واجهة مطابقة الأعمدة
+        function buildMappingUI() {
+            const tbody = document.getElementById('mappingTableBody');
+            tbody.innerHTML = '';
+
+            requiredFields.forEach(field => {
+                const prevMatch = findBestHeaderMatch(prevHeaders, field.keywords);
+                const currMatch = findBestHeaderMatch(currHeaders, field.keywords);
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3 border font-bold text-blue-900">${field.label}</td>
+                    <td class="p-3 border">
+                        <select id="prev_${field.key}" class="w-full border rounded p-1.5 bg-white">
+                            <option value="">-- غير موجود --</option>
+                            ${prevHeaders.map(h => `<option value="${h}" ${h === prevMatch ? 'selected' : ''}>${h}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="p-3 border">
+                        <select id="curr_${field.key}" class="w-full border rounded p-1.5 bg-white">
+                            <option value="">-- غير موجود --</option>
+                            ${currHeaders.map(h => `<option value="${h}" ${h === currMatch ? 'selected' : ''}>${h}</option>`).join('')}
+                        </select>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('mappingSection').classList.remove('hidden');
+        }
+
+        // دالة للتخمين الذكي لاسم العمود
+        function findBestHeaderMatch(headers, keywords) {
+            for (let kw of keywords) {
+                const found = headers.find(h => h.toString().includes(kw));
+                if (found) return found;
+            }
+            return '';
+        }
+
+        // تنظيف الأرقام (إزالة علامة % أو الفواصل)
+        function parseNumber(val) {
+            if (val === null || val === undefined || val === '') return 0;
+            if (typeof val === 'number') {
+                // إذا كانت النسبة مكتوبة ككسر عشري في الإكسيل مثل 0.85 بدلاً من 85
+                return val;
+            }
+            const cleaned = val.toString().replace(/[%,,\s]/g, '');
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? 0 : num;
+        }
+
+        // معالجة النسب المئوية (توحيدها لتكون من 0 إلى 100)
+        function normalizePercentage(val, rawVal) {
+            let num = parseNumber(val);
+            if (typeof rawVal === 'number' && rawVal > 0 && rawVal <= 1 && !rawVal.toString().includes('%')) {
+                // التحقق مما إذا كان الإكسيل يخزن 50% كـ 0.5
+                num = num * 100;
+            }
+            return Math.round(num * 100) / 100;
+        }
+
+        // تنسيق التاريخ
+        function formatDate(val) {
+            if (!val) return '-';
+            if (val instanceof Date) {
+                return val.toISOString().split('T')[0];
+            }
+            return val.toString().trim();
+        }
+
+        // المعالجة الرئيسية والمقارنة
+        function processData() {
+            const mapPrev = {};
+            const mapCurr = {};
+            requiredFields.forEach(f => {
+                mapPrev[f.key] = document.getElementById(`prev_${f.key}`).value;
+                mapCurr[f.key] = document.getElementById(`curr_${f.key}`).value;
+            });
+
+            if (!mapCurr.name) {
+                alert("يجب تحديد عمود (اسم المشروع) على الأقل في ملف الفترة الجديدة!");
+                return;
+            }
+
+            // تحويل بيانات الفترة السابقة لخريطة سريعة البحث باسم المشروع
+            const prevMap = new Map();
+            prevData.forEach(row => {
+                const name = (row[mapPrev.name] || '').toString().trim();
+                if (name) prevMap.set(name, row);
+            });
+
+            mergedResults = [];
+            let totalCost = 0;
+            let totalSpent = 0;
+            let sumActualCurr = 0;
+            let sumActualPrev = 0;
+            let matchedCount = 0;
+            let newProjectsCount = 0;
+            let delayedCount = 0;
+            const today = new Date();
+
+            currData.forEach(row => {
+                const name = (row[mapCurr.name] || '').toString().trim();
+                if (!name) return;
+
+                const cost = parseNumber(row[mapCurr.cost]);
+                const spent = parseNumber(row[mapCurr.spent]);
+                const planned = normalizePercentage(row[mapCurr.planned], row[mapCurr.planned]);
+                const actualCurr = normalizePercentage(row[mapCurr.actual], row[mapCurr.actual]);
+                const endDateRaw = row[mapCurr.endDate];
+                const endDateStr = formatDate(endDateRaw);
+
+                const prevRow = prevMap.get(name);
+                let actualPrev = 0;
+                let isNew = true;
+
+                if (prevRow && mapPrev.actual) {
+                    actualPrev = normalizePercentage(prevRow[mapPrev.actual], prevRow[mapPrev.actual]);
+                    isNew = false;
+                    matchedCount++;
+                    sumActualPrev += actualPrev;
+                } else {
+                    newProjectsCount++;
+                }
+
+                const progressDiff = Math.round((actualCurr - actualPrev) * 100) / 100;
+                const delayGap = Math.round((planned - actualCurr) * 100) / 100; // موجب يعني متأخر
+                const spentRatio = cost > 0 ? Math.round((spent / cost) * 1000) / 10 : 0;
+
+                // تحديد حالة المشروع
+                let statusList = [];
+                let isDelayed = false;
+                let isOverdue = false;
+                let isStagnant = (!isNew && progressDiff <= 0 && actualCurr < 100);
+
+                if (delayGap > 0) {
+                    isDelayed = true;
+                    delayedCount++;
+                    statusList.push(`متأخر (${delayGap}%)`);
+                }
+                if (endDateRaw instanceof Date && endDateRaw < today && actualCurr < 100) {
+                    isOverdue = true;
+                    statusList.push('تجاوز النهو');
+                }
+                if (isNew) statusList.push('مشروع مستجد');
+                if (actualCurr >= 100) statusList.push('مكتمل');
+                if (statusList.length === 0) statusList.push('منتظم');
+
+                totalCost += cost;
+                totalSpent += spent;
+                sumActualCurr += actualCurr;
+
+                mergedResults.push({
+                    name, cost, spent, spentRatio, planned, actualPrev, actualCurr,
+                    progressDiff, delayGap, endDateStr,
+                    statusText: statusList.join(' | '),
+                    isDelayed, isOverdue, isStagnant, isNew
+                });
+            });
+
+            // تحديث بطاقات المؤشرات (KPIs)
+            const totalProjects = mergedResults.length;
+            const avgActualCurr = totalProjects > 0 ? (sumActualCurr / totalProjects).toFixed(1) : 0;
+            const avgActualPrev = matchedCount > 0 ? (sumActualPrev / matchedCount).toFixed(1) : 0;
+            const overallSpentRatio = totalCost > 0 ? ((totalSpent / totalCost) * 100).toFixed(1) : 0;
+
+            document.getElementById('kpiTotalProjects').textContent = totalProjects;
+            document.getElementById('kpiNewProjects').textContent = newProjectsCount > 0 ? `منها ${newProjectsCount} مشروع مستجد` : 'مطابقة كاملة مع الفترة السابقة';
+            
+            document.getElementById('kpiAvgActual').textContent = `${avgActualCurr}%`;
+            document.getElementById('kpiProgressDiff').textContent = `كان ${avgActualPrev}% في الفترة السابقة`;
+
+            document.getElementById('kpiDelayedCount').textContent = delayedCount;
+            
+            document.getElementById('kpiSpentRatio').textContent = `${overallSpentRatio}%`;
+            document.getElementById('kpiFinancialTotals').textContent = `${totalSpent.toLocaleString()} من ${totalCost.toLocaleString()}`;
+
+            renderTable(mergedResults);
+            document.getElementById('resultsSection').classList.remove('hidden');
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // رسم الجدول
+        function renderTable(data) {
+            const tbody = document.getElementById('resultsTableBody');
+            tbody.innerHTML = '';
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = item.isDelayed ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50';
+                
+                const progressBadge = item.progressDiff > 0 
+                    ? `<span class="text-green-700 font-bold">+${item.progressDiff}%</span>` 
+                    : `<span class="text-gray-400">0%</span>`;
+
+                const delayBadge = item.delayGap > 0 
+                    ? `<span class="text-red-600 font-bold">${item.delayGap}%</span>` 
+                    : `<span class="text-green-600">0%</span>`;
+
+                tr.innerHTML = `
+                    <td class="p-3 font-bold text-gray-800">${item.name}</td>
+                    <td class="p-3">${item.cost.toLocaleString()}</td>
+                    <td class="p-3">${item.spent.toLocaleString()}</td>
+                    <td class="p-3 font-semibold">${item.spentRatio}%</td>
+                    <td class="p-3">${item.planned}%</td>
+                    <td class="p-3 text-gray-500">${item.isNew ? '-' : item.actualPrev + '%'}</td>
+                    <td class="p-3 font-bold text-blue-900">${item.actualCurr}%</td>
+                    <td class="p-3">${progressBadge}</td>
+                    <td class="p-3">${delayBadge}</td>
+                    <td class="p-3 text-xs">${item.endDateStr}</td>
+                    <td class="p-3 text-xs font-bold ${item.isDelayed || item.isOverdue ? 'text-red-700' : 'text-green-700'}">${item.statusText}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // تصفية الجدول
+        function filterTable(type) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-900', 'text-white');
+                btn.classList.add('bg-gray-200', 'text-gray-700');
+            });
+            event.target.classList.remove('bg-gray-200', 'text-gray-700');
+            event.target.classList.add('bg-blue-900', 'text-white');
+
+            let filtered = mergedResults;
+            if (type === 'delayed') filtered = mergedResults.filter(i => i.isDelayed);
+            if (type === 'overdue') filtered = mergedResults.filter(i => i.isOverdue);
+            if (type === 'stagnant') filtered = mergedResults.filter(i => i.isStagnant);
+            
+            renderTable(filtered);
+        }
+
+        // البحث بالاسم
+        function searchTable() {
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = mergedResults.filter(i => i.name.toLowerCase().includes(q));
+            renderTable(filtered);
+        }
+
+        // تصدير ملف إكسيل جديد مدمج
+        function exportToExcel() {
+            if (mergedResults.length === 0) return;
+
+            const exportData = mergedResults.map(item => ({
+                "اسم المشروع": item.name,
+                "التكلفة": item.cost,
+                "المنصرف": item.spent,
+                "نسبة الصرف %": item.spentRatio,
+                "نسبة التنفيذ المقررة %": item.planned,
+                "نسبة التنفيذ السابقة %": item.isNew ? "مستجد" : item.actualPrev,
+                "نسبة التنفيذ الحالية %": item.actualCurr,
+                "التقدم المحرز خلال الفترة %": item.progressDiff,
+                "فجوة التأخير %": item.delayGap > 0 ? item.delayGap : 0,
+                "تاريخ النهو": item.endDateStr,
+                "حالة المشروع": item.statusText
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "تقرير المقارنة والمتابعة");
+            XLSX.writeFile(wb, `تقرير_متابعة_المشروعات_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+    </script>
+</body>
+</html>
